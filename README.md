@@ -1,40 +1,56 @@
-## Advanced Lane Finding
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+# Advanced Lane Finding
+## https://medium.com/@patrickhk/self-driving-car-advanced-lane-lines-detection-524e1be6ccff
 
+Previously we build a basic car lane line detection model under the Udacity Self Driving Car Engineer Nano Degree Program. Now is time to apply more advanced skills to improve the model. Below is the result:<br/>
 
-In this project, your goal is to write a software pipeline to identify the lane boundaries in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
-
-Creating a great writeup:
----
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
-
-The goals / steps of this project are the following:
-
-* Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-* Apply a distortion correction to raw images.
-* Use color transforms, gradients, etc., to create a thresholded binary image.
-* Apply a perspective transform to rectify binary image ("birds-eye view").
-* Detect lane pixels and fit to find the lane boundary.
-* Determine the curvature of the lane and vehicle position with respect to center.
-* Warp the detected lane boundaries back onto the original image.
-* Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
-
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing your pipeline on single frames.  If you want to extract more test images from the videos, you can simply use an image writing method like `cv2.imwrite()`, i.e., you can read the video in frame by frame as usual, and for frames you want to save for later you can write to an image file.  
-
-To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `output_images`, and include a description in your writeup for the project of what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
-
-The `challenge_video.mp4` video is an extra (and optional) challenge for you if you want to test your pipeline under somewhat trickier conditions.  The `harder_challenge.mp4` video is another optional challenge and is brutal!
-
-If you're feeling ambitious (again, totally optional though), don't stop there!  We encourage you to go out and take video of your own, calibrate your camera and show us how you would implement this project from scratch!
-
-## My result
+### My result
 https://www.youtube.com/watch?v=WzHN9ZeElho
 
+
+### Correct the image distortion
+When we capture the 3D object into 2D image by camera, distortion due to lens usually occurs and makes the object look either further or closer than it is. Therefore the first step is to deal with the distortion. To get the camera calibration matrix and distortion coefficients, we can make use of the cv2.findChessboardCorners and cv2.calibrateCamera function. Then we can correct the distortion by cv2.undistort.<br/>
+![p1](https://cdn-images-1.medium.com/max/800/1*5WWTySsolWnkDpnne5t-gw.png)<br/>
+![p2](https://cdn-images-1.medium.com/max/800/1*U0frqP0MLVJknL2WDesC7g.png)<br/>
+
+### Perspective transform to get image in the birds eyes view
+Again when a camera captures 3D object into 2D image, parallel lines seem to converge to a point. It makes the parallel lane lines look like converging in the middle of the road. We can select certain src image points and project into dst points to get the perspective matrix M by cv2.getPerspectiveTransform (or given by manufacture). Then we can get the warped image(after perspective transform) by cv2.warpPerspective function<br/>
+![p3](https://cdn-images-1.medium.com/max/800/1*j8ijxi7L5SsuIVcgNCjSRg.png)<br/>
+
+### Define threshold function to get the lane line only
+Maybe there are many noise in the image, such as mountain, other car, tree…etc. We want to make use of the fact that lane line are mostly white or yellow color to define some threshold function.<br/>
+
+For example we can make use of the HLS color space to get<br/>
+![p4](https://cdn-images-1.medium.com/max/800/1*y65LwzpXVIwsKbe4gar0fA.png)<br/>
+![p5](https://cdn-images-1.medium.com/max/800/1*CmQUeRl2uyzHov2Tkbjayg.png)<br/>
+By combining sobel filter, HLS space, LAB space, direction of gradient and perspective transform, we can get<br/>
+![p6](https://cdn-images-1.medium.com/max/800/1*P697lKPUTzp08V0L8yUvWQ.png)<br/>
+![p7](https://cdn-images-1.medium.com/max/800/1*rnOluQR-btCbWWZ3dGXg0Q.png)<br/>
+### Get the lane line location
+Since the warped img is binary image, we can make a histogram of pixel value and get the location of left, right lane by identifying the peak<br/>
+
+![p8](https://cdn-images-1.medium.com/max/800/1*1fmTuP7Yw37riQ6Mo-f_tQ.png)<br/>
+Then we use the sliding window approach to get the nonzero pixel and iterate through nwindows to track curvature. I use nwindows = 9, margin = 100 and minpix = 50. Draw box by cv2.rectangle and get all the x,y coordinate position of the lane line point. Feed the point to np.polyfit get the best fit curve then extrapolate/predict the x-coordinate by proving y-coordinate.<br/>
+
+
+![p9](https://cdn-images-1.medium.com/max/800/1*24iZQIYTJ8POKeDKKXkvSw.png)<br/>
+### Draw the lane line on the original img
+Once we have the best fit curve of the lane line we can draw the area by cv2.fillPoly. Since this is in the birds eyes view we have to reverse perspective transform back to normal view, then apply to our original image.<br/>
+![p10](https://cdn-images-1.medium.com/max/800/1*tz1Rj1VCx4jbo3oncNUkaQ.png)<br/>
+![p11](https://cdn-images-1.medium.com/max/800/1*5dk9h1klWddQWv_D6gHYtg.png)<br/>
+![p12](https://cdn-images-1.medium.com/max/800/1*kd4MaWyv89S--3XvGZ4Xmw.png)<br/>
+### Ouput numerical estimation of the lane curvature and vehicle position
+Since all the operation are done in pixel space, is time to map it back to real world space with the help of some conversion. I adopt the conversion ym_per_pix = 30/720, which means there are (30/720) meters per pixel in y dimension. We can adjust the ratio base on actual measurement to get better result. Then all we do is the following equation and apply cv2.putText to visualize the number<br/>
+
+![p13](https://cdn-images-1.medium.com/max/800/1*ejulHRRgmxnOaCe9bmWdHg.png)<br/>
+![p14](https://cdn-images-1.medium.com/max/800/1*qrGHm-TfKLkuOS65AeqoTQ.png)<br/>
+![p15](https://cdn-images-1.medium.com/max/800/1*pP9kCuLWnCWM2ScAzVApaA.png)<br/>
+
+### Apply into video
+Wrap every above step into a function. Then use the VideoFileClip function from moviepy.editor. Boom, done.<br/>
+
+-------------------------------------------------------------------------------------------------------------------------------------
+### More about me
+[[:pencil:My Medium]](https://medium.com/@patrickhk)<br/>
+[[:house_with_garden:My Website]](https://www.fiyeroleung.com/)<br/>
+[[:space_invader:	My Github]](https://github.com/fiyero)<br/>
 
